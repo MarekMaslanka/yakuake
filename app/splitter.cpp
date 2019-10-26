@@ -6,7 +6,7 @@
   published by the Free Software Foundation; either version 2 of
   the License or (at your option) version 3 or any later version
   accepted by the membership of KDE e.V. (or its successor appro-
-  ved by the membership of KDE e.V.), which shall act as a proxy 
+  ved by the membership of KDE e.V.), which shall act as a proxy
   defined in Section 14 of version 3 of the license.
 
   This program is distributed in the hope that it will be useful,
@@ -21,11 +21,14 @@
 
 #include "splitter.h"
 
+int Splitter::m_availableSplitterId = 0;
 
 Splitter::Splitter(Qt::Orientation orientation, QWidget* parent) : QSplitter(orientation, parent)
 {
-    setAutoFillBackground(true);
-    setOpaqueResize(false);
+	m_splitterId = m_availableSplitterId;
+	m_availableSplitterId++;
+	setAutoFillBackground(true);
+	setOpaqueResize(false);
 }
 
 Splitter::~Splitter()
@@ -34,20 +37,20 @@ Splitter::~Splitter()
 
 void Splitter::recursiveCleanup()
 {
-    if (count() == 0)
-        deleteLater();
-    else
-    {
-        QList<Splitter*> list = findChildren<Splitter*>();
+	if (count() == 0)
+		deleteLater();
+	else
+	{
+		QList<Splitter*> list = findChildren<Splitter*>();
 
-        QListIterator<Splitter*> i(list);
+		QListIterator<Splitter*> i(list);
 
-        while (i.hasNext())
-        {
-            Splitter* splitter = i.next();
+		while (i.hasNext())
+		{
+			Splitter* splitter = i.next();
 
-            if (splitter->parent() == this)
-                splitter->recursiveCleanup();
-        }
-    }
+			if (splitter->parent() == this)
+				splitter->recursiveCleanup();
+		}
+	}
 }

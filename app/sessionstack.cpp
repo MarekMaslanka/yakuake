@@ -33,6 +33,11 @@
 
 #include <QDBusConnection>
 
+#include <QJsonArray>
+
+
+static auto SPLITTER_ID_KEY = QLatin1String("id");
+
 static bool show_disallow_certain_dbus_methods_message = true;
 
 SessionStack::SessionStack(QWidget* parent) : QStackedWidget(parent)
@@ -49,9 +54,9 @@ SessionStack::~SessionStack()
 {
 }
 
-int SessionStack::addSessionImpl(Session::SessionType type)
+int SessionStack::addSessionImpl(Session::SessionType type, const QJsonObject &json)
 {
-    Session* session = new Session(type, this);
+	Session* session = json.isEmpty() ? new Session(type, this) : new Session(json, this);
     connect(session, SIGNAL(titleChanged(int,QString)), this, SIGNAL(titleChanged(int,QString)));
     connect(session, SIGNAL(terminalManuallyActivated(Terminal*)), this, SLOT(handleManualTerminalActivation(Terminal*)));
     connect(session, SIGNAL(keyboardInputBlocked(Terminal*)), m_visualEventOverlay, SLOT(indicateKeyboardInputBlocked(Terminal*)));
@@ -668,4 +673,61 @@ bool SessionStack::queryClose(int sessionId, QueryCloseType type)
     }
 
     return true;
+}
+
+QJsonArray SessionStack::getSessionsAsJson(const QList<int> sessionIds)
+{
+	QJsonArray sessions;
+	for(int sessionId : sessionIds)
+	{
+		auto session = m_sessions[sessionId];
+
+		QJsonObject sessionObject = session->getSessionAsJson();
+		sessions.append(sessionObject);
+	}
+	return sessions;
+}
+
+bool SessionStack::restoreSessionsFromJson(const QJsonArray &sessions)
+{
+	for (const auto &sessionObj : sessions)
+	{
+		addSessionImpl(Session::Single, sessionObj.toObject());
+	}
+	return sessions.size() > 0;
+}
+
+void SessionStack::setStartupCommandForTerminal(int terminalId, const QString &command)
+{
+	Terminal* terminal = nullptr;
+	QHashIterator<int, Session*> it(m_sessions);
+	while (it.hasNext())
+	{
+		it.next();
+
+		terminal = it.value()->getTerminal(terminalId);
+		if (terminal)
+		{
+			terminal->setStartupCommand(command);
+
+			break;
+		}
+	}
+}
+
+QString SessionStack::getStartupCommandForTerminal(int terminalId)
+{
+	Terminal* terminal = nullptr;
+	QHashIterator<int, Session*> it(m_sessions);
+	while (it.hasNext())
+	{
+		it.next();
+
+		terminal = it.value()->getTerminal(terminalId);
+		if (terminal)
+		{
+			return terminal->getStartupCommand();
+		}
+	}
+	return QString();
 }

@@ -55,6 +55,11 @@
 #include <QWindow>
 #include <QDBusConnection>
 #include <QPlatformSurfaceEvent>
+#include <QDir>
+#include <QInputDialog>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #if HAVE_X11
 #include <QX11Info>
@@ -70,6 +75,7 @@
 #include <KWayland/Client/plasmashell.h>
 #endif
 
+auto SAVED_SESSIONS_FILE = QStringLiteral("sessions.json");
 
 MainWindow::MainWindow(QWidget* parent)
     : KMainWindow(parent, Qt::CustomizeWindowHint | Qt::FramelessWindowHint)
@@ -133,7 +139,10 @@ MainWindow::MainWindow(QWidget* parent)
 
     applySettings();
 
+	if(!loadSessions())
+	{
     m_sessionStack->addSession();
+	}
 
     if (Settings::firstRun())
     {
@@ -447,6 +456,11 @@ void MainWindow::setupActions()
     connect(action, SIGNAL(triggered(bool)), this, SLOT(handleContextDependentToggleAction(bool)));
     m_contextDependentActions << action;
 
+	action = actionCollection()->addAction(QStringLiteral("terminal-startup-command"));
+	action->setText(xi18nc("@action", "Set terminal startup command"));
+	connect(action, SIGNAL(triggered(bool)), this, SLOT(handleSetTerminalStartupCommandAction(bool)));
+	m_contextDependentActions << action;
+
     for (uint i = 1; i <= 10; ++i)
     {
         action = actionCollection()->addAction(QString(QStringLiteral("switch-to-session-%1")).arg(i));
@@ -501,6 +515,12 @@ void MainWindow::handleContextDependentAction(QAction* action, int sessionId)
 
     if (action == actionCollection()->action(QStringLiteral("grow-terminal-bottom")))
         m_sessionStack->tryGrowTerminalBottom(m_sessionStack->activeTerminalId());
+	
+	if (action == actionCollection()->action(QStringLiteral("terminal-startup-command")))
+	{
+		auto terminalId = m_sessionStack->terminalIdsForSessionId(sessionId).toInt();
+		editStartupCommand(terminalId);
+	}
 }
 
 void MainWindow::handleContextDependentToggleAction(bool checked, QAction* action, int sessionId)
@@ -574,6 +594,12 @@ void MainWindow::handleToggleTerminalMonitorSilence(bool checked)
     m_sessionStack->setTerminalMonitorSilenceEnabled(terminalId, checked);
 }
 
+void MainWindow::handleSetTerminalStartupCommandAction(bool checked)
+{
+	QAction* action = qobject_cast<QAction*>(QObject::sender());
+	editStartupCommand(action->data().toInt());
+}
+
 void MainWindow::handleTerminalActivity(Terminal* terminal)
 {
     Session* session = qobject_cast<Session*>(sender());
@@ -616,6 +642,17 @@ void MainWindow::handleSwitchToAction()
 
     if (action && !action->data().isNull())
         m_sessionStack->raiseSession(m_tabBar->sessionAtTab(action->data().toInt()-1));
+}
+
+void MainWindow::editStartupCommand(int terminalId)
+{
+	bool ok;
+	auto cmd = m_sessionStack->getStartupCommandForTerminal(terminalId);
+	QString text = QInputDialog::getText(this, tr("Enter command"), tr("Startup command:"), QLineEdit::Normal, cmd, &ok);
+	if(ok)
+	{
+		m_sessionStack->setStartupCommandForTerminal(terminalId, text);
+	}
 }
 
 void MainWindow::setupMenu()
@@ -1030,6 +1067,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     KMainWindow::closeEvent(event);
     if (event->isAccepted()) {
+		saveSessions();
         QApplication::quit();
     }
 }
@@ -1517,6 +1555,47 @@ void MainWindow::showStartupPopup()
     QString message(xi18nc("@info", "Application successfully started.<nl/>" "Press <shortcut>%1</shortcut> to use it ...", shortcut));
 
     KNotification::event(QLatin1String("startup"), message, QPixmap(), this);
+}
+
+void MainWindow::saveSessions()
+{
+	QDir appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+	if (!appDataPath.exists())
+		appDataPath.mkpath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+
+	QFile file(appDataPath.absoluteFilePath(SAVED_SESSIONS_FILE));
+	if (!file.open(QIODevice::WriteOnly))
+	{
+		qWarning("Couldn't open sessions file.");
+		return;
+	}
+	QList<int> sessionsIds;
+	for(int i = 0; i < sessionStack()->count(); i++)
+	{
+		sessionsIds << m_tabBar->sessionAtTab(i);
+	}
+	QJsonArray sessions = sessionStack()->getSessionsAsJson(sessionsIds);
+	QJsonDocument saveDoc(sessions);
+	file.write(saveDoc.toJson());
+}
+
+bool MainWindow::loadSessions()
+{
+	QDir appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+	if (!appDataPath.exists())
+		appDataPath.mkpath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+	QFile file(appDataPath.absoluteFilePath(SAVED_SESSIONS_FILE));
+
+	if (!file.open(QIODevice::ReadOnly))
+	{
+		qWarning("Couldn't open sessions file.");
+		return false;
+	}
+	QByteArray saveData = file.readAll();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+	QJsonArray sessions = loadDoc.array();
+	return sessionStack()->restoreSessionsFromJson(sessions);
 }
 
 void MainWindow::showFirstRunDialog()

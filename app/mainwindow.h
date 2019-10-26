@@ -42,173 +42,179 @@ class KActionCollection;
 
 #if HAVE_KWAYLAND
 namespace KWayland {
-    namespace Client {
-        class PlasmaShell;
-        class PlasmaShellSurface;
-    }
+	namespace Client {
+		class PlasmaShell;
+		class PlasmaShellSurface;
+	}
 }
 #endif
 
 class MainWindow : public KMainWindow
 {
-    Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.kde.yakuake")
+	Q_OBJECT
+	Q_CLASSINFO("D-Bus Interface", "org.kde.yakuake")
 
-    public:
-        explicit MainWindow(QWidget* parent = 0);
-        ~MainWindow();
+	public:
+		explicit MainWindow(QWidget* parent = 0);
+		~MainWindow();
 
-        KActionCollection* actionCollection() { return m_actionCollection; }
-        SessionStack* sessionStack() { return m_sessionStack; }
+		KActionCollection* actionCollection() { return m_actionCollection; }
+		SessionStack* sessionStack() { return m_sessionStack; }
 
-        Skin* skin() { return m_skin; }
-        QMenu* menu() { return m_menu; }
+		Skin* skin() { return m_skin; }
+		QMenu* menu() { return m_menu; }
 
-        bool useTranslucency() { return m_useTranslucency; }
+		bool useTranslucency() { return m_useTranslucency; }
 
-        void setContextDependentActionsQuiet(bool quiet);
-
-
-    public Q_SLOTS:
-        Q_SCRIPTABLE void toggleWindowState();
-
-        void handleContextDependentAction(QAction* action = 0, int sessionId = -1);
-        void handleContextDependentToggleAction(bool checked, QAction* action = 0, int sessionId = -1);
-        void handleToggleTerminalKeyboardInput(bool checked);
-        void handleToggleTerminalMonitorActivity(bool checked);
-        void handleToggleTerminalMonitorSilence(bool checked);
-        void handleTerminalActivity(Terminal* terminal);
-        void handleTerminalSilence(Terminal* terminal);
-        void handleLastTabClosed();
+		void setContextDependentActionsQuiet(bool quiet);
 
 
-    Q_SIGNALS:
-        void windowOpened();
-        void windowClosed();
+	public Q_SLOTS:
+		Q_SCRIPTABLE void toggleWindowState();
+
+		void handleContextDependentAction(QAction* action = 0, int sessionId = -1);
+		void handleContextDependentToggleAction(bool checked, QAction* action = 0, int sessionId = -1);
+		void handleToggleTerminalKeyboardInput(bool checked);
+		void handleToggleTerminalMonitorActivity(bool checked);
+		void handleToggleTerminalMonitorSilence(bool checked);
+		void handleTerminalActivity(Terminal* terminal);
+		void handleTerminalSilence(Terminal* terminal);
+		void handleLastTabClosed();
+		void handleSetTerminalStartupCommandAction(bool checked);
 
 
-    protected:
-        void paintEvent(QPaintEvent*) override;
-        void moveEvent(QMoveEvent*) override;
-        void changeEvent(QEvent* event) override;
-        void closeEvent(QCloseEvent *event) override;
-        bool event(QEvent* event) override;
-
-        virtual bool queryClose() override;
+	Q_SIGNALS:
+		void windowOpened();
+		void windowClosed();
 
 
-    private Q_SLOTS:
-        void applySettings();
-        void applySkin();
-        void applyWindowProperties();
+	protected:
+		void paintEvent(QPaintEvent*) override;
+		void moveEvent(QMoveEvent*) override;
+		void changeEvent(QEvent* event) override;
+		void closeEvent(QCloseEvent *event) override;
+		bool event(QEvent* event) override;
 
-        void applyWindowGeometry();
-        void setWindowGeometry(int width, int height, int position);
-
-        void updateScreenMenu();
-        void setScreen(QAction* action);
-
-        void setWindowWidth(int width);
-        void setWindowHeight(int height);
-        void setWindowWidth(QAction* action);
-        void setWindowHeight(QAction* action);
-
-        void increaseWindowWidth();
-        void decreaseWindowWidth();
-        void increaseWindowHeight();
-        void decreaseWindowHeight();
-
-        void wmActiveWindowChanged();
-
-        void xshapeOpenWindow();
-        void xshapeRetractWindow();
-
-        void activate();
-
-        void toggleMousePoll(bool poll);
-        void pollMouse();
-
-        void setKeepOpen(bool keepOpen);
-
-        void setFullScreen(bool state);
-
-        void handleSwitchToAction();
-
-        void whatsThis();
-
-        void configureKeys();
-        void configureNotifications();
-        void configureApp();
-
-        void showFirstRunDialog();
-        void firstRunDialogFinished();
-        void firstRunDialogOk();
+		virtual bool queryClose() override;
 
 
-    private:
-        void setupActions();
+	private Q_SLOTS:
+		void applySettings();
+		void applySkin();
+		void applyWindowProperties();
 
-        void setupMenu();
+		void applyWindowGeometry();
+		void setWindowGeometry(int width, int height, int position);
 
-        void updateWindowSizeMenus();
-        void updateWindowHeightMenu();
-        void updateWindowWidthMenu();
+		void updateScreenMenu();
+		void setScreen(QAction* action);
+
+		void setWindowWidth(int width);
+		void setWindowHeight(int height);
+		void setWindowWidth(QAction* action);
+		void setWindowHeight(QAction* action);
+
+		void increaseWindowWidth();
+		void decreaseWindowWidth();
+		void increaseWindowHeight();
+		void decreaseWindowHeight();
+
+		void wmActiveWindowChanged();
+
+		void xshapeOpenWindow();
+		void xshapeRetractWindow();
+
+		void activate();
+
+		void toggleMousePoll(bool poll);
+		void pollMouse();
+
+		void setKeepOpen(bool keepOpen);
+
+		void setFullScreen(bool state);
+
+		void handleSwitchToAction();
+
+		void editStartupCommand(int terminalId);
+
+		void whatsThis();
+
+		void configureKeys();
+		void configureNotifications();
+		void configureApp();
+
+		void showFirstRunDialog();
+		void firstRunDialogFinished();
+		void firstRunDialogOk();
+
+
+	private:
+		void setupActions();
+
+		void setupMenu();
+
+		void updateWindowSizeMenus();
+		void updateWindowHeightMenu();
+		void updateWindowWidthMenu();
 
 #if HAVE_X11
-        void kwinAssistToggleWindowState(bool visible);
-        void kwinAssistPropCleanup();
-        bool m_kwinAssistPropSet;
+		void kwinAssistToggleWindowState(bool visible);
+		void kwinAssistPropCleanup();
+		bool m_kwinAssistPropSet;
 #endif
 
-        void xshapeToggleWindowState(bool visible);
+		void xshapeToggleWindowState(bool visible);
 
-        void sharedPreOpenWindow();
-        void sharedAfterOpenWindow();
-        void sharedPreHideWindow();
-        void sharedAfterHideWindow();
+		void sharedPreOpenWindow();
+		void sharedAfterOpenWindow();
+		void sharedPreHideWindow();
+		void sharedAfterHideWindow();
 
-        void updateMask();
+		void updateMask();
 
-        int getScreen();
-        QRect getDesktopGeometry();
+		int getScreen();
+		QRect getDesktopGeometry();
 
-        void showStartupPopup();
+		void showStartupPopup();
 
-        void updateUseTranslucency();
-        bool m_useTranslucency;
-        bool m_isFullscreen;
+		void saveSessions();
+		bool loadSessions();
 
-        KActionCollection* m_actionCollection;
-        QList<QAction*> m_contextDependentActions;
+		void updateUseTranslucency();
+		bool m_useTranslucency;
+		bool m_isFullscreen;
 
-        Skin* m_skin;
-        TitleBar* m_titleBar;
-        TabBar* m_tabBar;
-        SessionStack* m_sessionStack;
+		KActionCollection* m_actionCollection;
+		QList<QAction*> m_contextDependentActions;
 
-        QMenu* m_menu;
-        KHelpMenu* m_helpMenu;
-        QMenu* m_screenMenu;
-        QMenu* m_windowWidthMenu;
-        QMenu* m_windowHeightMenu;
+		Skin* m_skin;
+		TitleBar* m_titleBar;
+		TabBar* m_tabBar;
+		SessionStack* m_sessionStack;
 
-        FirstRunDialog* m_firstRunDialog;
+		QMenu* m_menu;
+		KHelpMenu* m_helpMenu;
+		QMenu* m_screenMenu;
+		QMenu* m_windowWidthMenu;
+		QMenu* m_windowHeightMenu;
 
-        QTimer m_animationTimer;
-        QTimer m_mousePoller;
-        int m_animationFrame;
-        int m_animationStepSize;
+		FirstRunDialog* m_firstRunDialog;
 
-        bool m_toggleLock;
+		QTimer m_animationTimer;
+		QTimer m_mousePoller;
+		int m_animationFrame;
+		int m_animationStepSize;
 
-        bool m_isX11;
-        bool m_isWayland;
+		bool m_toggleLock;
+
+		bool m_isX11;
+		bool m_isWayland;
 
 #if HAVE_KWAYLAND
-        void initWayland();
-        void initWaylandSurface();
-        KWayland::Client::PlasmaShell *m_plasmaShell;
-        KWayland::Client::PlasmaShellSurface *m_plasmaShellSurface;
+		void initWayland();
+		void initWaylandSurface();
+		KWayland::Client::PlasmaShell *m_plasmaShell;
+		KWayland::Client::PlasmaShellSurface *m_plasmaShellSurface;
 #endif
 };
 

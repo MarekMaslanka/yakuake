@@ -74,6 +74,7 @@ TabBar::TabBar(MainWindow* mainWindow) : QWidget(mainWindow)
     m_toggleKeyboardInputMenu = new QMenu(xi18nc("@title:menu", "Disable Keyboard Input"), this);
     m_toggleMonitorActivityMenu = new QMenu(xi18nc("@title:menu", "Monitor for Activity"), this);
     m_toggleMonitorSilenceMenu = new QMenu(xi18nc("@title:menu", "Monitor for Silence"), this);
+	m_setStartupCommandMenu = new QMenu(xi18nc("@title:menu", "Startup command"), this);
 
     m_sessionMenu = new QMenu(this);
     connect(m_sessionMenu, SIGNAL(aboutToShow()), this, SLOT(readySessionMenu()));
@@ -133,6 +134,7 @@ void TabBar::readyTabContextMenu()
         m_tabContextMenu->addMenu(m_toggleKeyboardInputMenu);
         m_tabContextMenu->addMenu(m_toggleMonitorActivityMenu);
         m_tabContextMenu->addMenu(m_toggleMonitorSilenceMenu);
+		m_tabContextMenu->addMenu(m_setStartupCommandMenu);
         m_tabContextMenu->addSeparator();
         m_tabContextMenu->addAction(m_mainWindow->actionCollection()->action(QStringLiteral("move-session-left")));
         m_tabContextMenu->addAction(m_mainWindow->actionCollection()->action(QStringLiteral("move-session-right")));
@@ -332,6 +334,44 @@ void TabBar::updateToggleMonitorSilenceMenu(int sessionId)
     }
 }
 
+void TabBar::updateSetStartupCommandMenu(int sessionId)
+{
+	if (!m_tabs.contains(sessionId)) return;
+
+	QAction* setStartupCommandAction = m_mainWindow->actionCollection()->action(QStringLiteral("terminal-startup-command"));
+	QAction* action = m_setStartupCommandMenu->menuAction();
+
+	SessionStack* sessionStack = m_mainWindow->sessionStack();
+
+	QStringList terminalIds = sessionStack->terminalIdsForSessionId(sessionId).split(QStringLiteral(","), QString::SkipEmptyParts);
+
+	m_setStartupCommandMenu->clear();
+
+	if (terminalIds.count() == 1)
+	{
+		setStartupCommandAction->setText(xi18nc("@action", "Startup command"));
+		m_tabContextMenu->insertAction(action, setStartupCommandAction);
+		m_setStartupCommandMenu->menuAction()->setVisible(false);
+	}
+	else if (terminalIds.count() > 1)
+	{
+		int count = 0;
+
+		m_tabContextMenu->removeAction(setStartupCommandAction);
+		m_setStartupCommandMenu->menuAction()->setVisible(true);
+		QStringListIterator i(terminalIds);
+
+		while (i.hasNext())
+		{
+			int terminalId = i.next().toInt();
+
+			QAction* action = m_setStartupCommandMenu->addAction(xi18nc("@action", "For Terminal %1", ++count));
+			action->setData(terminalId);
+			connect(action, SIGNAL(triggered(bool)), m_mainWindow, SLOT(handleSetTerminalStartupCommandAction(bool)));
+		}
+	}
+}
+
 void TabBar::contextMenuActionHovered(QAction* action)
 {
     bool ok = false;
@@ -365,6 +405,7 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
         updateToggleKeyboardInputMenu(sessionId);
         updateToggleMonitorActivityMenu(sessionId);
         updateToggleMonitorSilenceMenu(sessionId);
+		updateSetStartupCommandMenu(sessionId);
 
         m_mainWindow->setContextDependentActionsQuiet(true);
 

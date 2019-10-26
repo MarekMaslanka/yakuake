@@ -34,77 +34,84 @@ class TerminalInterface;
 
 class Terminal : public QObject
 {
-    Q_OBJECT
+	Q_OBJECT
 
-    public:
-        explicit Terminal(QWidget* parent = 0);
-         ~Terminal();
+	public:
+		explicit Terminal(QWidget* parent = 0);
+		 ~Terminal();
 
-        bool eventFilter(QObject* watched, QEvent* event) override;
+		bool eventFilter(QObject* watched, QEvent* event) override;
 
-        int id() { return m_terminalId; }
-        const QString title() { return m_title; }
+		int id() { return m_terminalId; }
+		const QString title() { return m_title; }
 
-        QWidget* partWidget() { return m_partWidget; }
-        QWidget* terminalWidget() { return m_terminalWidget; }
+		QWidget* partWidget() { return m_partWidget; }
+		QWidget* terminalWidget() { return m_terminalWidget; }
 
-        QWidget* splitter() { return m_parentSplitter; }
-        void setSplitter(QWidget* splitter) { m_parentSplitter = splitter; }
+		QWidget* splitter() { return m_parentSplitter; }
+		void setSplitter(QWidget* splitter) { m_parentSplitter = splitter; }
 
-        void runCommand(const QString& command);
+		void runCommand(const QString& command);
 
-        void manageProfiles();
-        void editProfile();
+		void manageProfiles();
+		void editProfile();
 
-        bool keyboardInputEnabled() { return m_keyboardInputEnabled; }
-        void setKeyboardInputEnabled(bool enabled) { m_keyboardInputEnabled = enabled; }
+		bool keyboardInputEnabled() { return m_keyboardInputEnabled; }
+		void setKeyboardInputEnabled(bool enabled) { m_keyboardInputEnabled = enabled; }
 
-        bool monitorActivityEnabled() { return m_monitorActivityEnabled; }
-        void setMonitorActivityEnabled(bool enabled);
+		bool monitorActivityEnabled() { return m_monitorActivityEnabled; }
+		void setMonitorActivityEnabled(bool enabled);
 
-        bool monitorSilenceEnabled() { return m_monitorSilenceEnabled; }
-        void setMonitorSilenceEnabled(bool enabled);
+		bool monitorSilenceEnabled() { return m_monitorSilenceEnabled; }
+		void setMonitorSilenceEnabled(bool enabled);
 
-        void deletePart();
+		QString getStartupCommand() { return m_startupCommand; }
+		void setStartupCommand(const QString &startupCommand) { m_startupCommand = startupCommand; }
 
+		void deletePart();
 
-    Q_SIGNALS:
-        void titleChanged(int terminalId, const QString& title);
-        void activated(int terminalId);
-        void manuallyActivated(Terminal* terminal);
-        void keyboardInputBlocked(Terminal* terminal);
-        void activityDetected(Terminal* terminal);
-        void silenceDetected(Terminal* terminal);
-        void destroyed(int terminalId);
+		QJsonObject getTerminalStateAsJson();
+		void restoreTerminalStateFromJson(const QJsonObject &obj);
 
-
-    private Q_SLOTS:
-        void setTitle(const QString& title);
-        void overrideShortcut(QKeyEvent* event, bool& override);
-        void silenceDetected();
-        void activityDetected();
+	Q_SIGNALS:
+		void titleChanged(int terminalId, const QString& title);
+		void activated(int terminalId);
+		void manuallyActivated(Terminal* terminal);
+		void keyboardInputBlocked(Terminal* terminal);
+		void activityDetected(Terminal* terminal);
+		void silenceDetected(Terminal* terminal);
+		void destroyed(int terminalId);
 
 
-    private:
-        void disableOffendingPartActions();
+	private Q_SLOTS:
+		void setTitle(const QString& title);
+		void overrideShortcut(QKeyEvent* event, bool& override);
+		void silenceDetected();
+		void activityDetected();
 
-        void displayKPartLoadError();
 
-        static int m_availableTerminalId;
-        int m_terminalId;
+	private:
+		void disableOffendingPartActions();
 
-        KParts::Part* m_part;
-        TerminalInterface* m_terminalInterface;
-        QWidget* m_partWidget;
-        QPointer<QWidget> m_terminalWidget;
-        QWidget* m_parentSplitter;
+		void displayKPartLoadError();
 
-        QString m_title;
+		static int m_availableTerminalId;
+		int m_terminalId;
 
-        bool m_keyboardInputEnabled;
+		KParts::Part* m_part;
+		TerminalInterface* m_terminalInterface;
+		QWidget* m_partWidget;
+		QPointer<QWidget> m_terminalWidget;
+		QWidget* m_parentSplitter;
 
-        bool m_monitorActivityEnabled;
-        bool m_monitorSilenceEnabled;
+		QString m_title;
+
+		QString m_startupCommand;
+
+		bool m_keyboardInputEnabled;
+
+		bool m_monitorActivityEnabled;
+		bool m_monitorSilenceEnabled;
 };
 
 #endif

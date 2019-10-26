@@ -22,11 +22,22 @@
 
 #include "session.h"
 #include "terminal.h"
+#include <QJsonArray>
+#include <QJsonObject>
 
+static auto SPLITTER_ID_KEY = QLatin1String("id");
+static auto SPLITTER_PARENT_KEY = QLatin1String("parent");
+static auto SPLITTER_ORIENTATION_KEY = QLatin1String("orientation");
+static auto SPLITTER_SIZES_KEY = QLatin1String("sizes");
+static auto SESSION_TITLE_KEY = QLatin1String("title");
+static auto SESSION_TERMINALS_KEY = QLatin1String("terminals");
+static auto SESSION_SPLITTERS_KEY = QLatin1String("splitters");
+static auto SESSION_CLOSEABLE_KEY = QLatin1String("closeable");
+extern QLatin1String TERMINAL_PARENT_KEY;
 
 int Session::m_availableSessionId = 0;
 
-Session::Session(SessionType type, QWidget* parent) : QObject(parent)
+Session::Session(QWidget *parent) : QObject(parent)
 {
     m_sessionId = m_availableSessionId;
     m_availableSessionId++;
@@ -37,8 +48,72 @@ Session::Session(SessionType type, QWidget* parent) : QObject(parent)
 
     m_baseSplitter = new Splitter(Qt::Horizontal, parent);
     connect(m_baseSplitter, SIGNAL(destroyed()), this, SLOT(prepareShutdown()));
+}
 
+Session::Session(SessionType type, QWidget* parent) : Session(parent)
+{
     setupSession(type);
+}
+
+Session::Session(const QJsonObject &json, QWidget *parent) : Session(parent)
+{
+	QMap<int, Splitter *> splittersMap;
+	QMap<int, QJsonObject> jsonSplittersMap;
+	QList<QPair<Splitter *, QList<int>>> sizesList;
+	auto splittersArray = json[SESSION_SPLITTERS_KEY].toArray();
+	for(auto splitterValue : splittersArray)
+	{
+		auto splitterObj = splitterValue.toObject();
+		jsonSplittersMap[splitterObj[SPLITTER_ID_KEY].toInt()] = splitterObj;
+	}
+
+	auto baseSplitterObject = splittersArray[0].toObject();
+	splittersMap[baseSplitterObject[SPLITTER_ID_KEY].toInt()] = m_baseSplitter;
+	m_baseSplitter->setOrientation(baseSplitterObject[SPLITTER_ORIENTATION_KEY].toInt() == Qt::Horizontal ?  Qt::Horizontal : Qt::Vertical);
+
+	QList<int> sizes;
+	for(auto size : baseSplitterObject[SPLITTER_SIZES_KEY].toArray())
+	{
+		sizes << size.toInt();
+	}
+	sizesList.append(QPair<Splitter *, QList<int>>(m_baseSplitter, sizes));
+
+	for(auto terminalValue : json[SESSION_TERMINALS_KEY].toArray())
+	{
+		auto terminalObj = terminalValue.toObject();
+		auto splitterId = terminalObj[TERMINAL_PARENT_KEY].toInt();
+
+		Splitter *splitter;
+		if(splittersMap.contains(splitterId))
+		{
+			splitter = splittersMap[splitterId];
+		}
+		else
+		{
+			auto splitterObj = jsonSplittersMap[splitterId];
+			auto type = splitterObj[SPLITTER_ORIENTATION_KEY].toInt() == Qt::Horizontal ?  Qt::Horizontal : Qt::Vertical;
+			auto parentId = splitterObj[SPLITTER_PARENT_KEY].toInt();
+			auto parent = splittersMap[parentId];
+			splitter = new Splitter(type, parent);
+			connect(splitter, SIGNAL(destroyed()), this, SLOT(cleanup()));
+			splittersMap[splitterId] = splitter;
+
+			sizes.clear();
+			for(auto size : splitterObj[SPLITTER_SIZES_KEY].toArray())
+			{
+				sizes << size.toInt();
+			}
+			sizesList.append(QPair<Splitter *, QList<int>>(splitter, sizes));
+		}
+		auto terminal = addTerminal(splitter);
+		terminal->restoreTerminalStateFromJson(terminalObj);
+	}
+	for(auto sizes : sizesList)
+	{
+		sizes.first->setSizes(sizes.second);
+	}
+	setClosable(json[SESSION_CLOSEABLE_KEY].toBool());
+	m_title = json[SESSION_TITLE_KEY].toString();
 }
 
 Session::~Session()
@@ -640,6 +715,45 @@ bool Session::hasTerminalsWithMonitorSilenceDisabled()
             return true;
 
     return false;
+}
+
+QJsonObject Session::getSessionAsJson()
+{
+	QJsonObject result;
+	QJsonArray terminals;
+	QJsonArray splitters;
+	QMapIterator<int, Terminal*> it(m_terminals);
+
+	while (it.hasNext())
+	{
+		it.next();
+
+		auto terminal = it.value();
+		terminals.append(terminal->getTerminalStateAsJson());
+	}
+
+	QList<Splitter *> splitterWidgets = widget()->findChildren<Splitter *>();
+	splitterWidgets.prepend(m_baseSplitter);
+	for(auto *splitter : splitterWidgets)
+	{
+		QJsonObject objSplitter;
+		objSplitter[SPLITTER_ID_KEY] = splitter->id();
+		objSplitter[SPLITTER_PARENT_KEY] = static_cast<Splitter*>(splitter->parent())->id();
+		objSplitter[SPLITTER_ORIENTATION_KEY] = splitter->orientation();
+
+		QJsonArray sizes;
+		for(auto size : splitter->sizes())
+		{
+			sizes += size;
+		}
+		objSplitter[SPLITTER_SIZES_KEY] = sizes;
+		splitters.append(objSplitter);
+	}
+	result[SESSION_TITLE_KEY] = title();
+	result[SESSION_CLOSEABLE_KEY] = closable();
+	result[SESSION_TERMINALS_KEY] = terminals;
+	result[SESSION_SPLITTERS_KEY] = splitters;
+	return result;
 }
 
 bool Session::hasTerminalsWithMonitorSilenceEnabled()
